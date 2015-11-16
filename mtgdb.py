@@ -1,7 +1,8 @@
 import MySQLdb
 from db_params import params  
 
-db = MySQLdb.connect(user=params['user'],passwd=params['passwd'],db=params['db'])
+def connect():
+    return MySQLdb.connect(user=params['user'],passwd=params['passwd'],db=params['db'])
 
 def serialize(el):
     if type(el) == type(u''):
@@ -33,14 +34,14 @@ def insert_statement(table_name, data_table):
     print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
     return statement
 
-class cursor:
+class Cursor:
     def __init__(self):
-        self.__cursor = db.cursor()
+        self.__db = connect()
+        self.__cursor = self.__db.cursor()
     
     def insert(self, table_name, data_table):
         statement = insert_statement(table_name, data_table)
         message = '{} rows added to {}'.format(self.__cursor.execute(statement), table_name)
-        print '========================'
         print message
         return self
 
@@ -48,5 +49,9 @@ class cursor:
         self.__cursor.execute(query)
         return self.__cursor.fetchall()
 
-    
-
+    def close(self, commit=True):
+        if commit:
+            self.__db.commit()
+            print '========INSERT COMMITTED========='
+        self.__cursor.close()
+        self.__db.close()
