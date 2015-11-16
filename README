@@ -1,0 +1,4 @@
+you need a mysql database with a table results_raw with the right schema, and
+a file db_params with a params object containing user, passwd and db
+
+for now run process.py. 
