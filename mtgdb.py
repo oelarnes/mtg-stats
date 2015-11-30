@@ -52,6 +52,5 @@ class Cursor:
     def close(self, commit=True):
         if commit:
             self.__db.commit()
-            print '========INSERT COMMITTED========='
         self.__cursor.close()
         self.__db.close()

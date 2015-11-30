@@ -11,7 +11,7 @@ for link in links:
     try:
         fail_flag = False
         rounds_info = process.all_rounds_info(link)
-        print 'Round info parsed for event {}'.format(rounds_info[0][2])
+        print 'Round info parsed for event {}'.format(rounds_info[0][1])
         for round_ in rounds_info:
             try:
                 process.process_results_link(*round_)
@@ -24,7 +24,7 @@ for link in links:
             failed_links.append(link)
         else:
             success_links.append(link)
-            print 'Event {} Successfully Parsed!'.format(rounds_info[0][2]) 
+            print 'Event {} Successfully Processed!'.format(rounds_info[0][1]) 
     except:
         failed_links.append(link)
 
