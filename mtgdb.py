@@ -31,7 +31,6 @@ def insert_statement(table_name, data_table):
         values.append('({})'.format(content))
 
     statement += str.join(',', values)
-    print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
     return statement
 
 class Cursor:
@@ -41,6 +40,7 @@ class Cursor:
     
     def insert(self, table_name, data_table):
         statement = insert_statement(table_name, data_table)
+        print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
         message = '{} rows added to {}'.format(self.__cursor.execute(statement), table_name)
         print message
         return self
