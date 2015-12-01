@@ -1,4 +1,5 @@
 import requests
+import utils
 
 from mtgdb import Cursor
 from bs4 import BeautifulSoup
@@ -60,7 +61,7 @@ def elim_results(soup, event_id, max_round_num):
         if strong == p2 or len(p2_part[2]) > 0 and len(p2_part[2]) == 0:
             if len(result_raw) > 0:
                 raise Exception(ELIM_ERR_MSG)
-            result_raw = 'Lost ' + p2_part[2]
+            result_raw = 'Lost ' + utils.str_reverse(p2_part[2])
         if len(result_raw)==0:
             raise Exception(ELIM_ERR_MSG)
         p1_name_raw = standardize_name(p1_part[0])
