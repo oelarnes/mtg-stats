@@ -40,13 +40,13 @@ class Cursor:
     
     def insert(self, table_name, data_table):
         statement = insert_statement(table_name, data_table)
-        print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
-        message = '{} rows added to {}'.format(self.__cursor.execute(statement), table_name)
+        message = '{} rows added to {}'.format(len(self.execute(statement)), table_name)
         print message
         return self
 
-    def execute(self, query):
-        self.__cursor.execute(query)
+    def execute(self, statement):
+        print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
+        self.__cursor.execute(statement)
         return self.__cursor.fetchall()
 
     def close(self, commit=True):

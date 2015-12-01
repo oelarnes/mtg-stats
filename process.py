@@ -28,8 +28,16 @@ def all_event_links():
     else:
         r.raise_for_status()
 
+def mark_event_successful(event_id, event_link):
+    cursor = Cursor()
+    query = "UPDATE events_info set results_loaded=1 where event_id='{}' and event_link='{}'".format(event_id, event_link)
+    cursor.execute(query)
+    cursor.close()
+    return
+
 def upload_round_results(results_table, event_id, round_num):
     # results_table must all have same round_num and represent all results for that round!!
+    print
     print '==========Processing Results for Event {}, Round {}=========='.format(event_id, round_num)
     cursor = Cursor()
     print 'Writing {} rows'.format(len(results_table))
@@ -38,10 +46,6 @@ def upload_round_results(results_table, event_id, round_num):
     cursor = Cursor()
     print 'New {} row count: {}'.format(RAW_TABLE_NAME, cursor.execute('select count(1) from {}'.format(RAW_TABLE_NAME))[0][0])
     cursor.close(commit=False)
-
-def standardize_name(name):
-    first_last = name.split(' ')
-    return ' '.join(first_last[1:]) + ', ' + first_last[0]
 
 def elim_results(soup, event_id, max_round_num):
     ELIM_ERR_MSG = 'Could not interpret elimation round results for event {}'.format(event_id)
@@ -64,8 +68,8 @@ def elim_results(soup, event_id, max_round_num):
             result_raw = 'Lost ' + utils.str_reverse(p2_part[2])
         if len(result_raw)==0:
             raise Exception(ELIM_ERR_MSG)
-        p1_name_raw = standardize_name(p1_part[0])
-        p2_name_raw = standardize_name(p2_part[0])
+        p1_name_raw = utils.standardize_name(p1_part[0])
+        p2_name_raw = utils.standardize_name(p2_part[0])
         if len(bracket_pairs) == 7:
             if idx < 4:
                 round_num = max_round_num + 1
@@ -90,7 +94,6 @@ def elim_results(soup, event_id, max_round_num):
             'elim' : 1,
             'vs' : 'vs.'
         }
-        print row
         results_table.append(row)
 
     upload_round_results(results_table, event_id, max_round_num + 1)
@@ -133,9 +136,10 @@ def process_event_link(event_link):
             print 'Event {} Incomplete :('.format(rounds_info[0][1])
         else:
             print 'Event {} Successfully Processed!'.format(rounds_info[0][1]) 
+            mark_event_successful(rounds_info[0][1], event_link)
     except Exception as error:
         print error
-        print 'Event {} Failed :('.format(rounds_info[0][1])
+        print 'Event Link {} Failed :('.format(event_link)
         failed_links.append(event_link)
     return failed_links
 
