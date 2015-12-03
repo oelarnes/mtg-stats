@@ -4,15 +4,26 @@ import utils
 from mtgdb import Cursor
 from bs4 import BeautifulSoup
 
-RAW_TABLE_NAME = 'results_raw'
+RAW_TABLE_NAME = 'results_raw_table'
 RAW_COL_NAMES = ['table_id', 'p1_name_raw', 'p1_country', 'result_raw', 'vs', 'p2_name_raw', 'p2_country', 'round_num', 'event_id', 'elim']
 MAGIC_URL = 'http://magic.wizards.com'
+EVENTS_URL = MAGIC_URL + '/en/events/coverage'
 
 def clean_magic_link(url):
     if url.startswith(('http://','https://')):
         return url
     elif url.startswith('/'):
         return MAGIC_URL + url
+
+def event_id_from_link(url):
+    event_id = url.rpartition('/')[2]
+    if '=' in event_id:
+        event_id = event_id.rpartition('=')[2]
+    if event_id in ['welcome', 'Welcome']:
+        event_id = url.rpartition('/')[0].rpartition('=')[2]
+    if event_id == 'results':
+        event_id = url.rpartition('/')[0].rpartition('/')[2]
+    return event_id
 
 def event_info(soup):
     info = {};
@@ -21,7 +32,7 @@ def event_info(soup):
     extra_text = soup.next_sibling
 
 def all_event_links():
-    r = requests.get(MAGIC_URL + '/en/events/coverage')
+    r = requests.get(EVENTS_URL)
     if r.status_code is 200:
         soup = BeautifulSoup(r.text)
         return [clean_magic_link(item['href']) for item in soup.find_all('a', class_='more') if item['href'] is not None]
@@ -102,7 +113,7 @@ def all_rounds_info(soup, event_id):
     return [(clean_magic_link(el['href']), event_id, int(el.text)) for el in soup.find('p', text = 'RESULTS').parent.find_all('a')]
 
 def pre_process_event_link(event_link):
-    event_id = event_link.rpartition('/')[2]
+    event_id = event_id_from_link(event_link)
     r = requests.get(event_link)
     if r.status_code is 200:
         soup = BeautifulSoup(r.text)
