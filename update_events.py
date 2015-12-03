@@ -27,7 +27,15 @@ def info_text_to_fmt_desc(text):
     return text.partition(')')[2].lstrip(u'-\u2014\u2013 ')
 
 def update_event(event_info):
-    print event_info
+    if 'event_link' not in event_info:
+        return None
+    cursor = Cursor()
+    query = "select * from event_table where event_link = '{}'".format(event_info['event_link'])
+    result = cursor.execute(query)
+    if len(result) == 0:
+        event_info['results_loaded'] = 0
+        cursor.insert('event_table', [event_info])
+    cursor.close()
     return
 
 def update_events():
@@ -42,8 +50,8 @@ def update_events():
             season = section.find('span').text.partition(' ')[0]
             print 'season {}'.format(season)
             paragraphs =  section.find('div').find_all('p')
+            d = {'event_type' : 'Championship', 'season' : season}
             for paragraph in paragraphs:
-                d = {'event_type' : 'Championship'}
                 for child in paragraph.children:
                     #print child
                     #print '/\/\/\/\/\/\/\/'
@@ -60,7 +68,7 @@ def update_events():
                     elif child.name == 'br':
                         if 'event_link' in d:
                             update_event(d)
-                            d = {'event_type' : d['event_type']}
+                            d = {'event_type' : d['event_type'], 'season' : season}
                     elif child.name == 'a':
                         d['event_link'] = clean_magic_link(child['href'])
                         d['event_id'] = event_id_from_link(d['event_link'])
@@ -80,6 +88,7 @@ def update_events():
                             d['fmt_desc'] += child
                 if 'event_link' in d:
                     update_event(d)
+                    d = {'event_type' : d['event_type'], 'season' : season}
     else:
         r.raise_for_status()
     return

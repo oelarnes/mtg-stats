@@ -1,16 +1,19 @@
 import MySQLdb
 from db_params import params  
+from datetime import datetime
 
 def connect():
     return MySQLdb.connect(user=params['user'],passwd=params['passwd'],db=params['db'])
 
 def serialize(el):
-    if type(el) == type(u''):
+    if type(el) is unicode:
         el = el.encode('utf-8')
-    if type(el) == type(''):
+    if type(el) is str:
         return "'{}'".format(el.replace("'", "\\'"))
     if el == None:
         return 'NULL'
+    if type(el) is datetime:
+        return "'{}'".format(el.isoformat()[:10])
     return str(el)
 
 def names_from_data_table(data_table):
@@ -45,7 +48,7 @@ class Cursor:
         return self
 
     def execute(self, statement):
-        print 'executing statement: {}'.format(statement[:75] + ' ... ' + statement[-75:])
+        print 'executing statement: {}'.format(statement)
         self.__cursor.execute(statement)
         return self.__cursor.fetchall()
 
