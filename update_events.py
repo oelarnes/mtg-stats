@@ -1,14 +1,33 @@
 import requests
 
 from bs4 import BeautifulSoup
-from scrape_results import EVENTS_URL, clean_magic_link, event_id_from_link
 from mtgdb import Cursor
 from dateutil.parser import parse
 from datetime import datetime, timedelta
 
+MAGIC_URL = 'http://magic.wizards.com'
+EVENTS_URL = MAGIC_URL + '/en/events/coverage'
 EVENT_TABLE_COLUMNS = ['event_id', 'event_full_name', 'day_1_date', 'day_1_rounds', 'day_2_date', 'day_2_rounds', 'day_3_date', 'day_3_rounds', 'num_players',  
     'fmt_desc', 'fmt_type', 'fmt_primary', 'fmt_secondary', 'fmt_third', 'fmt_fourth', 'season', 'champion', 'event_type', 'host_country', 'team_event', 'event_link', 
     'results_loaded']
+
+def clean_magic_link(url):
+    if url.startswith(('http://','https://')):
+        return url
+    elif url.startswith('/'):
+        return MAGIC_URL + url
+
+def event_id_from_link(url):
+    event_id = url.rpartition('/')[2]
+    if '=' in event_id:
+        event_id = event_id.rpartition('=')[2]
+    if event_id in ['welcome', 'Welcome']:
+        event_id = url.rpartition('/')[0].rpartition('=')[2]
+    if event_id == 'results':
+        event_id = url.rpartition('/')[0].rpartition('/')[2]
+    if '/' in event_id:
+        event_id = event_id.rpartition('/')[2]
+    return event_id
 
 def info_text_to_date(text):
     if ')' not in text:

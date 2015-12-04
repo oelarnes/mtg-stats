@@ -1,17 +1,6 @@
 #!/usr/bin/env python
-import process
+from update_events import update_events
+from scrape_results import get_new_results
 
-links = process.all_event_links()
-
-failed_links = []
-
-for link in links:
-  failed_links.extend(process.process_event_link(link))
-
-print 
-print '=====SCRAPING COMPLETE====='
-print 
-print 'Failed Links:'
-for link in failed_links:
-    print link
-
+update_events()
+get_new_results(20)

@@ -6,42 +6,18 @@ from bs4 import BeautifulSoup
 
 RAW_TABLE_NAME = 'results_raw_table'
 RAW_COL_NAMES = ['table_id', 'p1_name_raw', 'p1_country', 'result_raw', 'vs', 'p2_name_raw', 'p2_country', 'round_num', 'event_id', 'elim']
-MAGIC_URL = 'http://magic.wizards.com'
-EVENTS_URL = MAGIC_URL + '/en/events/coverage'
 
-def clean_magic_link(url):
-    if url.startswith(('http://','https://')):
-        return url
-    elif url.startswith('/'):
-        return MAGIC_URL + url
-
-def event_id_from_link(url):
-    event_id = url.rpartition('/')[2]
-    if '=' in event_id:
-        event_id = event_id.rpartition('=')[2]
-    if event_id in ['welcome', 'Welcome']:
-        event_id = url.rpartition('/')[0].rpartition('=')[2]
-    if event_id == 'results':
-        event_id = url.rpartition('/')[0].rpartition('/')[2]
-    return event_id
-
-def event_info(soup):
-    info = {};
-    info['link'] = clean_magic_link(soup['href'])
-    info['location'] = soup.text
-    extra_text = soup.next_sibling
-
-def all_event_links():
-    r = requests.get(EVENTS_URL)
-    if r.status_code is 200:
-        soup = BeautifulSoup(r.text)
-        return [clean_magic_link(item['href']) for item in soup.find_all('a', class_='more') if item['href'] is not None]
-    else:
-        r.raise_for_status()
-
-def mark_event_successful(event_id, event_link):
+def get_new_results(num_events):
     cursor = Cursor()
-    query = "UPDATE events_info set results_loaded=1 where event_id='{}' and event_link='{}'".format(event_id, event_link)
+    query = "select event_link, event_id from event_table where results_loaded=0 limit {}".format(num_events)
+    event_infos = cursor.execute(query)
+    cursor.close()
+    for event_info in event_infos:
+        mark_event(*event_info, result=process_event_link(*event_info))
+
+def mark_event(event_id, event_link, result):
+    cursor = Cursor()
+    query = "UPDATE event_table set results_loaded={} where event_id='{}' and event_link='{}'".format(result, event_id, event_link)
     cursor.execute(query)
     cursor.close()
     return
@@ -112,18 +88,17 @@ def elim_results(soup, event_id, max_round_num):
 def all_rounds_info(soup, event_id):
     return [(clean_magic_link(el['href']), event_id, int(el.text)) for el in soup.find('p', text = 'RESULTS').parent.find_all('a')]
 
-def pre_process_event_link(event_link):
-    event_id = event_id_from_link(event_link)
+def event_soup(event_link):
     r = requests.get(event_link)
     if r.status_code is 200:
         soup = BeautifulSoup(r.text)
-        return (soup, event_id)
+        return soup
     else:
         r.raise_for_status()
         return
 
-def process_event_link(event_link):
-    soup, event_id = pre_process_event_link(event_link)
+def process_event_link(event_link, event_id):
+    soup = event_soup(event_link)
     print 'Deleting existing rows for event {}'.format(event_id)
     cursor = Cursor()
     cursor.execute("delete from {} where event_id='{}'".format(RAW_TABLE_NAME, event_id))
@@ -145,14 +120,14 @@ def process_event_link(event_link):
         print ''
         if len(failed_links) > 0:
             print 'Event {} Incomplete :('.format(rounds_info[0][1])
+            return -1
         else:
             print 'Event {} Successfully Processed!'.format(rounds_info[0][1]) 
-            mark_event_successful(rounds_info[0][1], event_link)
+            return 1
     except Exception as error:
         print error
         print 'Event Link {} Failed :('.format(event_link)
-        failed_links.append(event_link)
-    return failed_links
+        return -1
 
 def parse_row(soup, round_num, event_id):
     # we assume rows are either of the format RAW_COL_NAMES or 'table_id','p1_name_raw','results_raw','vs','p2_name_raw'
@@ -167,6 +142,13 @@ def parse_row(soup, round_num, event_id):
     values.append(0)
     results = dict(zip(RAW_COL_NAMES, values))
     return results
+
+MAGIC_URL = 'http://magic.wizards.com'
+def clean_magic_link(url):
+    if url.startswith(('http://','https://')):
+        return url
+    elif url.startswith('/'):
+        return MAGIC_URL + url
 
 def process_results_link(link, event_id, round_num):
     r = requests.get(link)
