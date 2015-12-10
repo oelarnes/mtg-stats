@@ -24,7 +24,10 @@ def normalize_raw_name(raw_name):
     elif raw_name.endswith(pattern):
       raw_name = raw_name.partition(pattern)[0]
   raw_name = raw_name.strip(' ()1234567890')
-  last_first = raw_name.partition(',')
+  last_first = list(raw_name.partition(','))
+  if '[' in last_first[0]:
+    print last_first[0].partition('[')
+  last_first[0] = last_first[0].partition('[')[0].rstrip() 
   normalized_name = last_first[0].strip().rstrip() 
   if len(last_first[2]):
     normalized_name += ', ' + last_first[2].strip().rstrip()
@@ -46,7 +49,7 @@ def max_name_list(names1, names2):
     if not any([name2.startswith(name) for name2 in names2]):
       ret_names.append(name)
   for name in names2:
-    if not any([name1.startswith(name) and len(name1)>len(name2) for name1 in names1]):
+    if not any([name1.startswith(name) and len(name1)>len(name) for name1 in names1]):
       ret_names.append(name)
   return ret_names
 
@@ -57,12 +60,19 @@ def normalized_event_names(event_id):
   for round_num in range(num_rounds):
     names = cursor.execute("select distinct p1_name_raw from results_raw_table where event_id = '{}' and round_num = {}".format(event_id, round_num))
     names += cursor.execute("select distinct p2_name_raw from results_raw_table where event_id = '{}' and round_num = {}".format(event_id, round_num))
-    all_round_names.append(list(set([normalize_full_raw_name(item) for sublist in names for item in sublist]))))
-
-  event_names = reduce(max_name_list, all_round_names, [])
+    all_round_names.append(list(set([normalize_raw_name(item) for sublist in names for item in sublist])))
+  cursor.close()
+  return reduce(max_name_list, all_round_names, [])
+  
+def populate_event_player_table(event_names):
   query = "select player_id, norm_name_1, norm_name_2, norm_name_3 from player_table where "
   or_ = False
   for name in event_names:
     if not or_:
       query += "or "
+    or_ = True
     query += "norm_name_1 like '{0}%' or norm_name_2 like '{0}%' or norm_name_3 like '{0}%' ".format(name)
+  cursor = Cursor()
+  player_table_names = cursor.execute(query)
+  
+    
