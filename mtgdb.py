@@ -43,8 +43,7 @@ class Cursor:
     
     def insert(self, table_name, data_table):
         statement = insert_statement(table_name, data_table)
-        message = '{} rows added to {}'.format(len(self.execute(statement)), table_name)
-        print message
+        self.execute(statement)
         return self
 
     def execute(self, statement):

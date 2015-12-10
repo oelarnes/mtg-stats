@@ -3,6 +3,8 @@ import utils
 
 from mtgdb import Cursor
 from bs4 import BeautifulSoup
+from update_events import clean_magic_link
+from players import fix_name_and_country
 
 RAW_TABLE_NAME = 'results_raw_table'
 RAW_COL_NAMES = ['table_id', 'p1_name_raw', 'p1_country', 'result_raw', 'vs', 'p2_name_raw', 'p2_country', 'round_num', 'event_id', 'elim']
@@ -15,7 +17,7 @@ def get_new_results(num_events):
     for event_info in event_infos:
         mark_event(*event_info, result=process_event_link(*event_info))
 
-def mark_event(event_id, event_link, result):
+def mark_event(event_link, event_id, result):
     cursor = Cursor()
     query = "UPDATE event_table set results_loaded={} where event_id='{}' and event_link='{}'".format(result, event_id, event_link)
     cursor.execute(query)
@@ -37,6 +39,7 @@ def upload_round_results(results_table, event_id, round_num):
 def elim_results(soup, event_id, max_round_num):
     ELIM_ERR_MSG = 'Could not interpret elimation round results for event {}'.format(event_id)
     bracket_pairs = soup.find('div', class_='top-bracket-slider').find_all('div', class_='dual-players')
+    bracket_pairs = [pair for pair in bracket_pairs if len(pair.find_all('div', class_='player')) == 2]
     results_table = []
     print '{} matches found in elimination rounds'.format(len(bracket_pairs))
     for idx, pair in enumerate(bracket_pairs):
@@ -86,7 +89,9 @@ def elim_results(soup, event_id, max_round_num):
     upload_round_results(results_table, event_id, max_round_num + 1)
 
 def all_rounds_info(soup, event_id):
-    return [(clean_magic_link(el['href']), event_id, int(el.text)) for el in soup.find('p', text = 'RESULTS').parent.find_all('a')]
+    results = [el for el in soup.find_all('p') if 'RESULTS' in el.text or 'Results' in el.text]
+    assert len(results) == 1
+    return [(clean_magic_link(el['href']), event_id, int(el.text)) for el in results[0].parent.find_all('a')]
 
 def event_soup(event_link):
     r = requests.get(event_link)
@@ -141,14 +146,13 @@ def parse_row(soup, round_num, event_id):
     values.append(event_id)
     values.append(0)
     results = dict(zip(RAW_COL_NAMES, values))
+    name_and_country_1 = fix_name_and_country(results['p1_name_raw'], results['p1_country'])
+    name_and_country_2 = fix_name_and_country(results['p2_name_raw'], results['p2_country'])
+    results['p1_name_raw'] = name_and_country_1[0]
+    results['p1_country'] = name_and_country_1[1]
+    results['p2_name_raw'] = name_and_country_2[0]
+    results['p2_country'] = name_and_country_2[1]
     return results
-
-MAGIC_URL = 'http://magic.wizards.com'
-def clean_magic_link(url):
-    if url.startswith(('http://','https://')):
-        return url
-    elif url.startswith('/'):
-        return MAGIC_URL + url
 
 def process_results_link(link, event_id, round_num):
     r = requests.get(link)
@@ -158,7 +162,7 @@ def process_results_link(link, event_id, round_num):
         r.raise_for_status()
         return
     results_table = [parse_row(row, round_num, event_id) for row in soup.find('table').find_all('tr') if parse_row(row, round_num, event_id) is not None]
-    assert len(results_table) > 0, 'no results for event {}, round [}'.format(event_id, round_num)
+    assert len(results_table) > 0, 'no results for event {}, round {}'.format(event_id, round_num)
     upload_round_results(results_table, event_id, round_num)
 
 
